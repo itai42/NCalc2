@@ -58,6 +58,16 @@ namespace NCalc
         /// Allows parameter conversion in lambda function matching (if match without conversion failed)
         /// no deep search for best override - if there's no exact match - it'll just use first valid option it encounters
         /// </summary>
-        AllowLambdaParameterConversion = 1 << 11
+        AllowLambdaParameterConversion = 1 << 11,
+        /// <summary>
+        /// Allows parameter conversion in lambda function matching (if match without conversion failed)
+        /// no deep search for best override - if there's no exact match - it'll just use first valid option it encounters
+        /// </summary>
+        AllowLambdaObjectMemberAccess = 1 << 12,
+        /// <summary>
+        /// Allows parameter conversion in lambda function matching (if match without conversion failed)
+        /// no deep search for best override - if there's no exact match - it'll just use first valid option it encounters
+        /// </summary>
+        AllowLambdaObjectFunctionAccess = 1 << 13
     }
 }
