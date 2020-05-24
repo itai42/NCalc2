@@ -1,7 +1,8 @@
 # NCalc2 clone
-Clone of the CoreCLR-NCalc which in turn is a clone of NCalc from http://ncalc.codeplex.com/ 
+Clone of the CoreCLR-NCalc (https://github.com/sklose/NCalc2) which in turn is a clone of NCalc from http://ncalc.codeplex.com/ 
 This cloane fixes sime issues I needed fixed for my uses (e.g. allowing type conversion in function parameter search so that double and int anc be used interchangebly so that integer literals can be used in double calls without adding ".0") and allows to some degree access to lmbda context object members and member methods.
 at this stage accessign members of members is possible and also members of returned function results, but function call parameters are just IConver()ed from string
+Writing this readme - I shoul've branched... might do so instead. if I havent feel free to pull there if you want
 
 ## Expressions with Functions and Parameters
 
