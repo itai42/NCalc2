@@ -1,29 +1,7 @@
-# NCalc
-
-[![Build status](https://ci.appveyor.com/api/projects/status/ugw4wg1iws3far9m?svg=true)](https://ci.appveyor.com/project/sklose/ncalc2) [![NuGet](https://img.shields.io/nuget/v/CoreCLR-NCalc.svg)](https://www.nuget.org/packages/CoreCLR-NCalc) [![NuGet](https://img.shields.io/nuget/dt/CoreCLR-NCalc.svg)](https://www.nuget.org/packages/CoreCLR-NCalc)
-
-A clone of NCalc from http://ncalc.codeplex.com/ with the following changes:
-- added support for CoreCLR (.NET Standard 1.3+)
-- embedded portable version of Antlr (no extra library/dependency required)
-- added compilation of expressions to actual CLR lambdas
-
-# Installation
-
-Simply install the package via NuGet
-
-```powershell
-PM> Install-Package CoreCLR-NCalc
-```
-
-# Creating Lambdas
-
-## Simple Expressions
-
-```csharp
-var expr = new Expression("1 + 2");
-Func<int> f = expr.ToLambda<int>();
-Console.WriteLine(f()); // will print 3
-```
+# NCalc2 clone
+Clone of the CoreCLR-NCalc which in turn is a clone of NCalc from http://ncalc.codeplex.com/ 
+This cloane fixes sime issues I needed fixed for my uses (e.g. allowing type conversion in function parameter search so that double and int anc be used interchangebly so that integer literals can be used in double calls without adding ".0") and allows to some degree access to lmbda context object members and member methods.
+at this stage accessign members of members is possible and also members of returned function results, but function call parameters are just IConver()ed from string
 
 ## Expressions with Functions and Parameters
 
@@ -32,28 +10,21 @@ class ExpressionContext
 {
   public int Param1 { get; set; }
   public string Param2 { get; set; }
-  
-  public int Foo(int a, int b)
+  public class CCC
   {
-    return a + b;
+    public int ccc = 5;
+    public double funcA() { return 22.2;}
+  }
+  public CCC C = new CCC();
+  public double Foo(double a, double b, double c)
+  {
+    return a + b + c;
   }
 }
 
-var expr = new Expression("Foo([Param1], 2) = 4 && [Param2] = 'test'");
+var expr = new Expression("Foo([Param1], C.ccc, c.funcA()) = 29.2 && [Param2] = 'test'");
 Func<ExpressionContext, bool> f = expr.ToLambda<ExpressionContext, bool>();
 
 var context = new ExpressionContext { Param1 = 2, Param2 = "test" };
 Console.WriteLine(f(context)); // will print True
 ```
-
-## Performance Comparison
-
-The measurements were done during CI runs on AppVeyor and fluctuate a lot in between runs, but the speedup is consistently in the thousands of percent range. The speedup measured on actual hardware was even higher (between 10,000% and 35,000%).
-
-| Formula  | Description | Expression Evaluations / sec | Lambda Evaluations / sec | Speedup |
-| ------------- | ------------- | ------------- | ------------- | ------------- |
-| (4 * 12 / 7) + ((9 * 2) % 8)  | Simple Arithmetics | 474,247.87 | 32,691,490.41 | 6,793.33% |
-| 5 * 2 = 2 * 5 && (1 / 3.0) * 3 = 1  | Simple Arithmetics | 276,226.31 | 93,222,709.05 | 33,648.67% |
-| [Param1] * 7 + [Param2]  | Constant Values| 707,493.27 | 21,766,101.47 | 2,976.51% |
-| [Param1] * 7 + [Param2]  | Dynamic Values | 582,832.10 | 21,400,445.13 | 3,571.80% |
-| Foo([Param1] * 7, [Param2])  | Dynamic Values and Function Call | 594,259.69 | 17,209,334.34 | 2,795.93% |
