@@ -52,6 +52,12 @@ namespace NCalc
         /// <summary>
         /// Defines a "null" parameter and allows comparison of values to null.
         /// </summary>
-        AllowNullParameter = 1 << 10
+        AllowNullParameter = 1 << 10,
+
+        /// <summary>
+        /// Allows parameter conversion in lambda function matching (if match without conversion failed)
+        /// no deep search for best override - if there's no exact match - it'll just use first valid option it encounters
+        /// </summary>
+        AllowLambdaParameterConversion = 1 << 11
     }
 }

@@ -14,6 +14,7 @@ namespace NCalc
         private readonly L.Expression _context;
         private readonly EvaluateOptions _options = EvaluateOptions.None;
 
+        private bool AllowConversion { get { return (_options & EvaluateOptions.AllowLambdaParameterConversion) == EvaluateOptions.AllowLambdaParameterConversion; } }
         private bool Ordinal { get { return (_options & EvaluateOptions.MatchStringsOrdinal) == EvaluateOptions.MatchStringsOrdinal; } }
         private bool IgnoreCaseString { get { return (_options & EvaluateOptions.MatchStringsWithIgnoreCase) == EvaluateOptions.MatchStringsWithIgnoreCase; } }
         private bool Checked { get { return (_options & EvaluateOptions.OverflowProtection) == EvaluateOptions.OverflowProtection; } }
@@ -202,24 +203,27 @@ namespace NCalc
             }
         }
 
-        private ExtendedMethodInfo FindMethod(string methodName, L.Expression[] methodArgs) 
+        private ExtendedMethodInfo FindMethod(string methodName, L.Expression[] methodArgs, bool withConversion = false) 
         {
             var methods = _context.Type.GetTypeInfo().DeclaredMethods.Where(m => m.Name.Equals(methodName, StringComparison.OrdinalIgnoreCase) && m.IsPublic && !m.IsStatic);
             foreach (var potentialMethod in methods) 
             {
                 var methodParams = potentialMethod.GetParameters();
-                var newArguments = PrepareMethodArgumentsIfValid(methodParams, methodArgs);
+                var newArguments = PrepareMethodArgumentsIfValid(methodParams, methodArgs, withConversion);
 
                 if (newArguments != null) 
                 {
                     return new ExtendedMethodInfo() { BaseMethodInfo = potentialMethod, PreparedArguments = newArguments };
                 }
             }
-
+            if (AllowConversion && !withConversion)
+            {
+                return FindMethod(methodName, methodArgs, true);
+            }
             throw new MissingMethodException($"method not found: {methodName}");
         }
 
-        private L.Expression[] PrepareMethodArgumentsIfValid(ParameterInfo[] parameters, L.Expression[] arguments) 
+        private L.Expression[] PrepareMethodArgumentsIfValid(ParameterInfo[] parameters, L.Expression[] arguments, bool withConversion) 
         {
             if (!parameters.Any() && !arguments.Any()) return arguments;
             if (!parameters.Any()) return null;
@@ -243,21 +247,40 @@ namespace NCalc
                 paramsElementType = lastParameter.ParameterType.GetElementType();
                 paramsKeywordArgument = new L.Expression[arguments.Length - parameters.Length + 1];
             }
-            
-            for (int i = 0; i < arguments.Length; i++) 
+
+            for (int i = 0; i < arguments.Length; i++)
             {
                 var isParamsElement = hasParamsKeyword && i >= paramsParameterPosition;
                 var argumentType = arguments[i].Type;
                 var parameterType = isParamsElement ? paramsElementType : parameters[i].ParameterType;
                 paramsMatchArguments &= argumentType == parameterType;
-                if (!paramsMatchArguments) return null;
-                if (!isParamsElement) 
+                var curArg = arguments[i];
+                if (!paramsMatchArguments)
                 {
-                    newArguments[i] = arguments[i];
-                } 
-                else 
+                    if (withConversion)
+                    {
+                        try
+                        {
+                            curArg = (L.Expression)L.Expression.Convert(arguments[i], parameterType);
+                            paramsMatchArguments = true;
+                        }
+                        catch (Exception)
+                        {
+                            paramsMatchArguments = false;
+                        }
+                    }
+                    if (!paramsMatchArguments)
+                    {
+                        return null;
+                    }
+                }
+                if (!isParamsElement)
                 {
-                    paramsKeywordArgument[i - paramsParameterPosition] = arguments[i];
+                    newArguments[i] = curArg;
+                }
+                else
+                {
+                    paramsKeywordArgument[i - paramsParameterPosition] = curArg;
                 }
             }
 
