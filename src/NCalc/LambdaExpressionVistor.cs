@@ -218,13 +218,39 @@ namespace NCalc
 
         public override void Visit(BinaryExpression expression)
         {
+            Exception forRethrow = null;
             expression.LeftExpression.Accept(this);
             var left = _result;
 
             expression.RightExpression.Accept(this);
             var right = _result;
-
-            switch (expression.Type)
+            try
+            {
+                visitBinaryExpression(left, right, expression.Type);
+            }
+            catch (Exception e)
+            {
+                forRethrow = e; 
+            }
+            if (AllowConversion && forRethrow != null)
+            {
+                try
+                {
+                    left = UnwrapNullable(left);
+                    right = UnwrapNullable(right);
+                    left = L.Expression.Convert(left, typeof(int));
+                    right = L.Expression.Convert(right, typeof(int));
+                    visitBinaryExpression(left, right, expression.Type);
+                }
+                catch (Exception)
+                {
+                    throw (forRethrow);
+                }
+            }
+        }
+        internal void visitBinaryExpression(L.Expression left, L.Expression right, BinaryExpressionType tpe)
+        {
+            switch (tpe)
             {
                 case BinaryExpressionType.And:
                     _result = L.Expression.AndAlso(left, right);
@@ -233,22 +259,22 @@ namespace NCalc
                     _result = L.Expression.OrElse(left, right);
                     break;
                 case BinaryExpressionType.NotEqual:
-                    _result = WithCommonNumericType(left, right, L.Expression.NotEqual, expression.Type);
+                    _result = WithCommonNumericType(left, right, L.Expression.NotEqual, tpe);
                     break;
                 case BinaryExpressionType.LesserOrEqual:
-                    _result = WithCommonNumericType(left, right, L.Expression.LessThanOrEqual, expression.Type);
+                    _result = WithCommonNumericType(left, right, L.Expression.LessThanOrEqual, tpe);
                     break;
                 case BinaryExpressionType.GreaterOrEqual:
-                    _result = WithCommonNumericType(left, right, L.Expression.GreaterThanOrEqual, expression.Type);
+                    _result = WithCommonNumericType(left, right, L.Expression.GreaterThanOrEqual, tpe);
                     break;
                 case BinaryExpressionType.Lesser:
-                    _result = WithCommonNumericType(left, right, L.Expression.LessThan, expression.Type);
+                    _result = WithCommonNumericType(left, right, L.Expression.LessThan, tpe);
                     break;
                 case BinaryExpressionType.Greater:
-                    _result = WithCommonNumericType(left, right, L.Expression.GreaterThan, expression.Type);
+                    _result = WithCommonNumericType(left, right, L.Expression.GreaterThan, tpe);
                     break;
                 case BinaryExpressionType.Equal:
-                    _result = WithCommonNumericType(left, right, L.Expression.Equal, expression.Type);
+                    _result = WithCommonNumericType(left, right, L.Expression.Equal, tpe);
                     break;
                 case BinaryExpressionType.Minus:
                     if (Checked) _result = WithCommonNumericType(left, right, L.Expression.SubtractChecked);
@@ -315,6 +341,30 @@ namespace NCalc
         public override void Visit(Function function)
         {
             var args = new L.Expression[function.Expressions.Length];
+            if (function.Identifier.Name.ToLowerInvariant() == "onlyif")
+            {
+                if (function.Expressions.Length == 2)
+                {
+
+                    function.Expressions[0].Accept(this);
+                    args[0] = _result;
+                    function.Expressions[1].Accept(this);
+                    args[1] = _result;
+                    _result = L.Expression.IfThen(args[0], args[1]);
+                    return;
+                }
+                else if (function.Expressions.Length == 3)
+                {
+                    function.Expressions[0].Accept(this);
+                    args[0] = _result;
+                    function.Expressions[1].Accept(this);
+                    args[1] = _result;
+                    function.Expressions[2].Accept(this);
+                    args[2] = _result;
+                    _result = L.Expression.IfThenElse(args[0], args[1], args[2]);
+                    return;
+                }
+            }
             for (int i = 0; i < function.Expressions.Length; i++)
             {
                 function.Expressions[i].Accept(this);
@@ -412,7 +462,7 @@ namespace NCalc
                             string funcName = parts.First();
                             string argsStr = parts.Last();
                             var argsStrs = argsStr.SplitRegardingPrenthesis(0, -1, SRPOptions.TrimNRem, ",", false, "(", ")");
-                            var args = argsStrs.Select(arg => new Expression(arg, EvaluateOptions.AllowLambdaParameterConversion).ToLambda<object>()()).ToArray();
+                            var args = argsStrs.Select(arg => new Expression(arg, _options | EvaluateOptions.AllowLambdaParameterConversion).ToLambda<object, object>()(_context)).ToArray();
                             var method = FindSubcontextMethod(subContext, funcName, args);
                             subContext = L.Expression.Call(subContext, method.BaseMethodInfo, method.PreparedArguments);
                             found = true;
