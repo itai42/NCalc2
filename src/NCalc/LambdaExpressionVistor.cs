@@ -731,6 +731,22 @@ namespace NCalc
             }
             else comparer = L.Expression.Property(null, typeof(StringComparer), "Ordinal");
 
+            if ((action == L.Expression.Add || action == L.Expression.AddChecked || action == L.Expression.AddAssign || action == L.Expression.AddAssignChecked) &&
+                    (typeof(string).Equals(left.Type) || typeof(string).Equals(right.Type)))
+            {
+                if (AllowConversion && !typeof(string).Equals(left.Type))
+                {
+                    left = L.Expression.Convert(left, typeof(string));
+                }
+                if (AllowConversion && !typeof(string).Equals(right.Type))
+                {
+                    right = L.Expression.Convert(left, typeof(string));
+                }
+               
+                var concatMethod = typeof(string).GetRuntimeMethod("Concat", new[] { typeof(string), typeof(string) });
+                var concatCall = L.Expression.Call(concatMethod, left, right);
+                return concatCall;
+            }
             if (comparer != null && (typeof(string).Equals(left.Type) || typeof(string).Equals(right.Type)))
             {
                 switch (expressiontype)
